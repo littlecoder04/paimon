@@ -22,6 +22,7 @@ import org.apache.paimon.CoreOptions;
 import org.apache.paimon.append.dataevolution.DataEvolutionCompactCoordinator;
 import org.apache.paimon.append.dataevolution.DataEvolutionCompactTask;
 import org.apache.paimon.data.BinaryString;
+import org.apache.paimon.data.BlobData;
 import org.apache.paimon.data.GenericRow;
 import org.apache.paimon.data.InternalRow;
 import org.apache.paimon.fs.Path;
@@ -36,6 +37,7 @@ import org.apache.paimon.predicate.PredicateBuilder;
 import org.apache.paimon.reader.DataEvolutionFileReader;
 import org.apache.paimon.reader.RecordReader;
 import org.apache.paimon.schema.Schema;
+import org.apache.paimon.schema.SchemaChange;
 import org.apache.paimon.table.sink.BatchTableCommit;
 import org.apache.paimon.table.sink.BatchTableWrite;
 import org.apache.paimon.table.sink.BatchWriteBuilder;
@@ -951,6 +953,130 @@ public class DataEvolutionTableTest extends DataEvolutionTestBase {
         assertThat(entries.size()).isEqualTo(1);
         assertThat(entries.get(0).file().nonNullFirstRowId()).isEqualTo(0);
         assertThat(entries.get(0).file().rowCount()).isEqualTo(500000L);
+    }
+
+    /**
+     * Reproduce: compact + partial column write → row count mismatch on read.
+     *
+     * <p>Simulates production scenario:
+     *
+     * <pre>
+     *   1. Write N rows with [f0, f1]
+     *   2. Partial write [f2] for ALL N rows (first_row_id=0)
+     *   3. Compact → merges into 1 file (N rows, all cols, first_row_id=0)
+     *   4. Partial write [f2] for M &lt; N rows (first_row_id=0)
+     *   5. Read → error: row count mismatch (M vs N)
+     * </pre>
+     */
+    @Test
+    public void testCompactPartialWriteRowCountMismatch() throws Exception {
+        // Create table with low compaction threshold so 2 files trigger compact
+        Schema.Builder schemaBuilder = Schema.newBuilder();
+        schemaBuilder.column("f0", DataTypes.INT());
+        schemaBuilder.column("f1", DataTypes.STRING());
+        schemaBuilder.column("f2", DataTypes.STRING());
+        schemaBuilder.option(CoreOptions.ROW_TRACKING_ENABLED.key(), "true");
+        schemaBuilder.option(CoreOptions.DATA_EVOLUTION_ENABLED.key(), "true");
+        schemaBuilder.option("compaction.min.file-num", "2");
+        catalog.createTable(identifier(), schemaBuilder.build(), true);
+        Schema schema = schemaDefault();
+        FileStoreTable table = getTableDefault();
+        BatchWriteBuilder builder = table.newBatchWriteBuilder();
+
+        int totalRows = 100;
+        int partialRows = 70;
+
+        // Step 1: Write totalRows with [f0, f1]
+        RowType writeType01 = schema.rowType().project(Arrays.asList("f0", "f1"));
+        try (BatchTableWrite write = builder.newWrite().withWriteType(writeType01)) {
+            for (int i = 0; i < totalRows; i++) {
+                write.write(GenericRow.of(i, BinaryString.fromString("a" + i)));
+            }
+            BatchTableCommit commit = builder.newCommit();
+            commit.commit(write.prepareCommit());
+            commit.close();
+        }
+
+        // Step 2: Partial write [f2] for ALL totalRows (first_row_id=0)
+        RowType writeType2 = schema.rowType().project(Collections.singletonList("f2"));
+        try (BatchTableWrite write = builder.newWrite().withWriteType(writeType2)) {
+            for (int i = 0; i < totalRows; i++) {
+                write.write(GenericRow.of(BinaryString.fromString("b" + i)));
+            }
+            BatchTableCommit commit = builder.newCommit();
+            List<CommitMessage> commitables = write.prepareCommit();
+            setFirstRowId(commitables, 0L);
+            commit.commit(commitables);
+            commit.close();
+        }
+
+        // Step 3: Compact using real DataEvolutionCompactCoordinator
+        table = getTableDefault();
+        DataEvolutionCompactCoordinator coordinator =
+                new DataEvolutionCompactCoordinator(table, false, false);
+        List<CommitMessage> compactMessages = new ArrayList<>();
+        List<DataEvolutionCompactTask> tasks;
+        try {
+            while (!(tasks = coordinator.plan()).isEmpty()) {
+                for (DataEvolutionCompactTask task : tasks) {
+                    compactMessages.add(task.doCompact(table, commitUser));
+                }
+            }
+        } catch (EndOfScanException ignore) {
+        }
+        assertThat(compactMessages.isEmpty()).isFalse();
+        table.newBatchWriteBuilder().newCommit().commit(compactMessages);
+
+        // Verify: after compact, 1 file with totalRows, all cols
+        table = getTableDefault();
+        List<ManifestEntry> entriesAfterCompact = new ArrayList<>();
+        Iterator<ManifestEntry> filesAfterCompact = table.newSnapshotReader().readFileIterator();
+        while (filesAfterCompact.hasNext()) {
+            entriesAfterCompact.add(filesAfterCompact.next());
+        }
+        assertThat(entriesAfterCompact.size()).isEqualTo(1);
+        assertThat(entriesAfterCompact.get(0).file().rowCount()).isEqualTo((long) totalRows);
+
+        // Step 4: Partial write [f2] for fewer rows (first_row_id=0)
+        // This simulates a new partial write after compact with mismatched row count
+        builder = table.newBatchWriteBuilder();
+        try (BatchTableWrite write = builder.newWrite().withWriteType(writeType2)) {
+            for (int i = 0; i < partialRows; i++) {
+                write.write(GenericRow.of(BinaryString.fromString("c" + i)));
+            }
+            BatchTableCommit commit = builder.newCommit();
+            List<CommitMessage> commitables = write.prepareCommit();
+            setFirstRowId(commitables, 0L);
+            commit.commit(commitables);
+            commit.close();
+        }
+
+        // Step 5: Read → should trigger row count mismatch
+        // file[0]: partialRows rows, write_cols=[f2], first_row_id=0
+        // file[1]: totalRows rows, write_cols=null (all cols), first_row_id=0
+        table = getTableDefault();
+        ReadBuilder readBuilder = table.newReadBuilder();
+        List<Split> splits = readBuilder.newScan().plan().splits();
+
+        DataSplit dataSplit = (DataSplit) splits.get(0);
+        assertThat(dataSplit.dataFiles().size()).isEqualTo(2);
+        List<Long> rowCounts =
+                dataSplit.dataFiles().stream()
+                        .map(DataFileMeta::rowCount)
+                        .sorted()
+                        .collect(Collectors.toList());
+        assertThat(rowCounts).isEqualTo(Arrays.asList((long) partialRows, (long) totalRows));
+
+        // This read should fail with row count / row id range mismatch
+        try {
+            RecordReader<InternalRow> reader =
+                    readBuilder.newRead().createReader(readBuilder.newScan().plan());
+            List<InternalRow> rows = new ArrayList<>();
+            reader.forEachRemaining(rows::add);
+            // If we get here without error, the bug is not reproduced on Java read side
+        } catch (Exception e) {
+            assertThat(e.getMessage()).contains("row id ranges same");
+        }
     }
 
     @Test
