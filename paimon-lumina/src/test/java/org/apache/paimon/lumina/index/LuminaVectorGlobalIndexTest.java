@@ -268,6 +268,39 @@ public class LuminaVectorGlobalIndexTest {
     }
 
     @Test
+    void testWriteWithNullVectors() throws IOException {
+        int dimension = 2;
+        Options options = createDefaultOptions(dimension);
+
+        GlobalIndexFileWriter fileWriter = createFileWriter(indexPath);
+        LuminaVectorIndexOptions indexOptions = new LuminaVectorIndexOptions(options);
+        LuminaVectorGlobalIndexWriter writer =
+                new LuminaVectorGlobalIndexWriter(fileWriter, vectorType, indexOptions);
+
+        writer.write(new float[] {1.0f, 0.0f}); // row 0
+        writer.write(null); // row 1 - NULL
+        writer.write(new float[] {0.95f, 0.1f}); // row 2
+        writer.write(null); // row 3 - NULL
+        writer.write(new float[] {0.1f, 0.95f}); // row 4
+        writer.write(new float[] {0.98f, 0.05f}); // row 5
+
+        List<ResultEntry> results = writer.finish();
+        assertThat(results).hasSize(1);
+        // rowCount should be 4 (only non-null vectors)
+        assertThat(results.get(0).rowCount()).isEqualTo(4);
+
+        List<GlobalIndexIOMeta> metas = toIOMetas(results, indexPath);
+        GlobalIndexFileReader fileReader = createFileReader(indexPath);
+        try (LuminaVectorGlobalIndexReader reader =
+                new LuminaVectorGlobalIndexReader(fileReader, metas, vectorType, indexOptions)) {
+            VectorSearch vectorSearch = new VectorSearch(new float[] {1.0f, 0.0f}, 3, fieldName);
+            LuminaScoredGlobalIndexResult result =
+                    (LuminaScoredGlobalIndexResult) reader.visitVectorSearch(vectorSearch).get();
+            assertThat(result.results().getLongCardinality()).isEqualTo(3);
+        }
+    }
+
+    @Test
     public void testSearchWithFilter() throws IOException {
         int dimension = 2;
         Options options = createDefaultOptions(dimension);

@@ -139,7 +139,8 @@ public class LuminaVectorGlobalIndexWriter implements GlobalIndexSingletonWriter
     @Override
     public void write(Object fieldData) {
         if (fieldData == null) {
-            throw new IllegalArgumentException("Field data must not be null");
+            LOG.debug("Skipping null vector field data");
+            return;
         }
 
         int bytesNeeded = dim * Float.BYTES;
