@@ -19,7 +19,6 @@
 Conflict detection for commit operations.
 """
 
-
 from pypaimon.manifest.manifest_list_manager import ManifestListManager
 from pypaimon.manifest.schema.data_file_meta import DataFileMeta
 from pypaimon.manifest.schema.file_entry import FileEntry
@@ -54,13 +53,8 @@ class ConflictDetection:
 
     def should_be_overwrite_commit(self):
         """Check if the commit should be treated as an overwrite commit.
-
-        returns True if rowIdCheckFromSnapshot is set.
-
-        Returns:
-            True if the commit should be treated as OVERWRITE.
         """
-        return self._row_id_check_from_snapshot is not None
+        return False
 
     def check_conflicts(self, latest_snapshot, base_entries, delta_entries, commit_kind):
         """Run all conflict checks and return the first detected conflict.

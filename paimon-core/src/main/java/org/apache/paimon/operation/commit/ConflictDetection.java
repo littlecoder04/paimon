@@ -140,7 +140,7 @@ public class ConflictDetection {
                 return true;
             }
         }
-        return rowIdCheckFromSnapshot != null;
+        return false;
     }
 
     public Optional<RuntimeException> checkConflicts(
