@@ -141,7 +141,7 @@ class FileStoreCommit:
         logger.info("Finished collecting changes, including: %d entries", len(commit_entries))
 
         commit_kind = "APPEND"
-        detect_conflicts = False
+        detect_conflicts = self.conflict_detection._row_id_check_from_snapshot is not None
         allow_rollback = False
         if self.conflict_detection.should_be_overwrite_commit():
             commit_kind = "OVERWRITE"
