@@ -60,7 +60,7 @@ class ConflictDetection:
         self._row_id_check_from_snapshot = value
 
     @property
-    def needs_row_id_conflict_check(self):
+    def has_row_id_check_from_snapshot(self):
         return self._row_id_check_from_snapshot is not None
 
     def check_conflicts(self, latest_snapshot, base_entries, delta_entries, commit_kind):

@@ -307,8 +307,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                     || !changes.appendChangelog.isEmpty()
                     || !changes.appendIndexFiles.isEmpty()) {
                 CommitKind commitKind = CommitKind.APPEND;
-                if (appendCommitCheckConflict
-                        || conflictDetection.getRowIdCheckFromSnapshot() != null) {
+                if (appendCommitCheckConflict || conflictDetection.hasRowIdCheckFromSnapshot()) {
                     checkAppendFiles = true;
                 }
 
@@ -1051,7 +1050,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
     private Map<String, String> snapshotPropertiesForCommit(
             Map<String, String> properties, CommitKind commitKind) {
         Long rowIdCheckFromSnapshot = conflictDetection.getRowIdCheckFromSnapshot();
-        if (commitKind != CommitKind.APPEND || rowIdCheckFromSnapshot == null) {
+        if (commitKind != CommitKind.APPEND || !conflictDetection.hasRowIdCheckFromSnapshot()) {
             return properties;
         }
 

@@ -25,13 +25,10 @@ BATCH_COMMIT_IDENTIFIER = 0x7fffffffffffffff
 ROW_ID_CHECK_FROM_SNAPSHOT = "row-id-check-from-snapshot"
 
 
-def is_row_id_conflict_checked_append(snapshot) -> bool:
+def has_row_id_check_property(snapshot) -> bool:
+    """Check if snapshot has the row-id-check-from-snapshot property."""
     properties = snapshot.properties
-    return (
-        snapshot.commit_kind == "APPEND"
-        and isinstance(properties, dict)
-        and ROW_ID_CHECK_FROM_SNAPSHOT in properties
-    )
+    return isinstance(properties, dict) and ROW_ID_CHECK_FROM_SNAPSHOT in properties
 
 
 @dataclass

@@ -19,7 +19,7 @@
 
 from pypaimon.read.scanner.follow_up_scanner import FollowUpScanner
 from pypaimon.snapshot.snapshot import (Snapshot,
-                                        is_row_id_conflict_checked_append)
+                                        has_row_id_check_property)
 
 
 class DeltaFollowUpScanner(FollowUpScanner):
@@ -27,4 +27,4 @@ class DeltaFollowUpScanner(FollowUpScanner):
 
     def should_scan(self, snapshot: Snapshot) -> bool:
         return (snapshot.commit_kind == "APPEND"
-                and not is_row_id_conflict_checked_append(snapshot))
+                and not has_row_id_check_property(snapshot))
