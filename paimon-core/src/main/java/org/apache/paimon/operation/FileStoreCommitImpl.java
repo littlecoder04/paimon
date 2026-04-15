@@ -155,7 +155,6 @@ public class FileStoreCommitImpl implements FileStoreCommit {
     private boolean ignoreEmptyCommit;
     private CommitMetrics commitMetrics;
     private boolean appendCommitCheckConflict = false;
-    @Nullable private Long rowIdCheckFromSnapshot = null;
 
     public FileStoreCommitImpl(
             SnapshotCommit snapshotCommit,
@@ -239,11 +238,8 @@ public class FileStoreCommitImpl implements FileStoreCommit {
 
     @Override
     public FileStoreCommit rowIdCheckConflict(@Nullable Long rowIdCheckFromSnapshot) {
-        this.rowIdCheckFromSnapshot = rowIdCheckFromSnapshot;
         this.conflictDetection.setRowIdCheckFromSnapshot(rowIdCheckFromSnapshot);
-        if (rowIdCheckFromSnapshot != null) {
-            this.appendCommitCheckConflict = true;
-        }
+        this.appendCommitCheckConflict = rowIdCheckFromSnapshot != null;
         return this;
     }
 
@@ -1054,6 +1050,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
 
     private Map<String, String> snapshotPropertiesForCommit(
             Map<String, String> properties, CommitKind commitKind) {
+        Long rowIdCheckFromSnapshot = conflictDetection.getRowIdCheckFromSnapshot();
         if (commitKind != CommitKind.APPEND || rowIdCheckFromSnapshot == null) {
             return properties;
         }

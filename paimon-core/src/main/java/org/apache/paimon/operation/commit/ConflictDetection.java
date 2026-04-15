@@ -120,6 +120,11 @@ public class ConflictDetection {
     }
 
     @Nullable
+    public Long getRowIdCheckFromSnapshot() {
+        return rowIdCheckFromSnapshot;
+    }
+
+    @Nullable
     public Comparator<InternalRow> keyComparator() {
         return keyComparator;
     }

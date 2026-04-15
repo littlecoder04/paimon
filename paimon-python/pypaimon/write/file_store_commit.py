@@ -119,9 +119,9 @@ class FileStoreCommit:
         valid_snapshots = [msg.check_from_snapshot for msg in commit_messages
                            if msg.check_from_snapshot != -1]
         if valid_snapshots:
-            self.conflict_detection._row_id_check_from_snapshot = min(valid_snapshots)
+            self.conflict_detection.row_id_check_from_snapshot = min(valid_snapshots)
         else:
-            self.conflict_detection._row_id_check_from_snapshot = None
+            self.conflict_detection.row_id_check_from_snapshot = None
 
         logger.info(
             "Ready to commit to table %s, number of commit messages: %d",
@@ -143,12 +143,8 @@ class FileStoreCommit:
         logger.info("Finished collecting changes, including: %d entries", len(commit_entries))
 
         commit_kind = "APPEND"
-        detect_conflicts = self.conflict_detection._row_id_check_from_snapshot is not None
+        detect_conflicts = self.conflict_detection.needs_row_id_conflict_check
         allow_rollback = False
-        if self.conflict_detection.should_be_overwrite_commit():
-            commit_kind = "OVERWRITE"
-            detect_conflicts = True
-            allow_rollback = True
 
         self._try_commit(commit_kind=commit_kind,
                          commit_identifier=commit_identifier,
@@ -382,10 +378,10 @@ class FileStoreCommit:
             total_record_count += delta_record_count
             snapshot_properties = None
             if (commit_kind == "APPEND" and
-                    self.conflict_detection._row_id_check_from_snapshot is not None):
+                    self.conflict_detection.needs_row_id_conflict_check):
                 snapshot_properties = {
                     ROW_ID_CHECK_FROM_SNAPSHOT:
-                        str(self.conflict_detection._row_id_check_from_snapshot)
+                        str(self.conflict_detection.row_id_check_from_snapshot)
                 }
             snapshot_data = Snapshot(
                 version=3,
