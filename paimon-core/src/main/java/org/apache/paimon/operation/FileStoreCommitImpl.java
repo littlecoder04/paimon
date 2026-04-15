@@ -239,7 +239,9 @@ public class FileStoreCommitImpl implements FileStoreCommit {
     @Override
     public FileStoreCommit rowIdCheckConflict(@Nullable Long rowIdCheckFromSnapshot) {
         this.conflictDetection.setRowIdCheckFromSnapshot(rowIdCheckFromSnapshot);
-        this.appendCommitCheckConflict = rowIdCheckFromSnapshot != null;
+        if (rowIdCheckFromSnapshot != null) {
+            this.appendCommitCheckConflict = true;
+        }
         return this;
     }
 
