@@ -19,7 +19,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pyarrow as pa
 
@@ -591,7 +591,6 @@ class ShardTableUpdatorTest(unittest.TestCase):
             "got %s. _ROW_ID and _SEQUENCE_NUMBER should NOT be returned when not in projection."
             % actual_columns
         )
-
 
     def test_shard_update_passes_allow_rollback_true(self):
         table_schema = pa.schema([

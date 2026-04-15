@@ -143,7 +143,7 @@ class FileStoreCommit:
         logger.info("Finished collecting changes, including: %d entries", len(commit_entries))
 
         commit_kind = "APPEND"
-        has_row_id_check = self.conflict_detection.has_row_id_check_from_snapshot
+        has_row_id_check = self.conflict_detection.row_id_check_from_snapshot is not None
         detect_conflicts = has_row_id_check
         allow_rollback = has_row_id_check
 
@@ -379,7 +379,7 @@ class FileStoreCommit:
             total_record_count += delta_record_count
             snapshot_properties = None
             if (commit_kind == "APPEND" and
-                    self.conflict_detection.has_row_id_check_from_snapshot):
+                    self.conflict_detection.row_id_check_from_snapshot is not None):
                 snapshot_properties = {
                     ROW_ID_CHECK_FROM_SNAPSHOT:
                         str(self.conflict_detection.row_id_check_from_snapshot)

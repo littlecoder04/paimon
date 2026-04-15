@@ -307,7 +307,8 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                     || !changes.appendChangelog.isEmpty()
                     || !changes.appendIndexFiles.isEmpty()) {
                 CommitKind commitKind = CommitKind.APPEND;
-                if (appendCommitCheckConflict || conflictDetection.hasRowIdCheckFromSnapshot()) {
+                if (appendCommitCheckConflict
+                        || conflictDetection.getRowIdCheckFromSnapshot() != null) {
                     checkAppendFiles = true;
                 }
 
@@ -318,7 +319,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                     checkAppendFiles = true;
                     allowRollback = true;
                 }
-                if (conflictDetection.hasRowIdCheckFromSnapshot()) {
+                if (conflictDetection.getRowIdCheckFromSnapshot() != null) {
                     allowRollback = true;
                 }
 
@@ -1053,7 +1054,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
     private Map<String, String> snapshotPropertiesForCommit(
             Map<String, String> properties, CommitKind commitKind) {
         Long rowIdCheckFromSnapshot = conflictDetection.getRowIdCheckFromSnapshot();
-        if (commitKind != CommitKind.APPEND || !conflictDetection.hasRowIdCheckFromSnapshot()) {
+        if (commitKind != CommitKind.APPEND || rowIdCheckFromSnapshot == null) {
             return properties;
         }
 
