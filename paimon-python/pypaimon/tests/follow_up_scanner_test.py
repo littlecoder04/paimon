@@ -22,6 +22,7 @@ from unittest.mock import Mock
 
 from pypaimon.read.scanner.delta_follow_up_scanner import DeltaFollowUpScanner
 from pypaimon.read.scanner.follow_up_scanner import FollowUpScanner
+from pypaimon.snapshot.snapshot import ROW_ID_CHECK_FROM_SNAPSHOT
 
 
 class FollowUpScannerInterfaceTest(unittest.TestCase):
@@ -53,6 +54,15 @@ class DeltaFollowUpScannerTest(unittest.TestCase):
         for kind in ("COMPACT", "OVERWRITE", "EXPIRE", "ANALYZE"):
             snapshot = Mock(commit_kind=kind)
             self.assertFalse(self.scanner.should_scan(snapshot), kind)
+
+    def test_should_scan_returns_false_for_row_id_check_append_commit(self):
+        """DeltaFollowUpScanner should skip internal row-id patch APPEND commits."""
+        snapshot = Mock(
+            commit_kind="APPEND",
+            properties={ROW_ID_CHECK_FROM_SNAPSHOT: "1"},
+        )
+
+        self.assertFalse(self.scanner.should_scan(snapshot))
 
 
 if __name__ == '__main__':

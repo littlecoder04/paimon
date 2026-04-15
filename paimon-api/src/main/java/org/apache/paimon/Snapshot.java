@@ -45,6 +45,7 @@ public class Snapshot implements Serializable {
     private static final long serialVersionUID = 1L;
 
     public static final long FIRST_SNAPSHOT_ID = 1;
+    public static final String ROW_ID_CHECK_FROM_SNAPSHOT = "row-id-check-from-snapshot";
 
     protected static final int CURRENT_VERSION = 3;
 
@@ -380,6 +381,10 @@ public class Snapshot implements Serializable {
     @Nullable
     public Map<String, String> properties() {
         return properties;
+    }
+
+    public boolean hasProperty(String key) {
+        return properties != null && properties.containsKey(key);
     }
 
     @JsonGetter(FIELD_NEXT_ROW_ID)

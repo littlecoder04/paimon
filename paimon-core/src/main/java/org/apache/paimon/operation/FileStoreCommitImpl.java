@@ -155,6 +155,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
     private boolean ignoreEmptyCommit;
     private CommitMetrics commitMetrics;
     private boolean appendCommitCheckConflict = false;
+    @Nullable private Long rowIdCheckFromSnapshot = null;
 
     public FileStoreCommitImpl(
             SnapshotCommit snapshotCommit,
@@ -238,6 +239,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
 
     @Override
     public FileStoreCommit rowIdCheckConflict(@Nullable Long rowIdCheckFromSnapshot) {
+        this.rowIdCheckFromSnapshot = rowIdCheckFromSnapshot;
         this.conflictDetection.setRowIdCheckFromSnapshot(rowIdCheckFromSnapshot);
         if (rowIdCheckFromSnapshot != null) {
             this.appendCommitCheckConflict = true;
@@ -965,6 +967,8 @@ public class FileStoreCommitImpl implements FileStoreCommit {
             }
 
             // prepare snapshot file
+            Map<String, String> snapshotProperties =
+                    snapshotPropertiesForCommit(properties, commitKind);
             newSnapshot =
                     new Snapshot(
                             newSnapshotId,
@@ -986,7 +990,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                             currentWatermark,
                             statsFileName,
                             // if empty properties, just set to null
-                            properties.isEmpty() ? null : properties,
+                            snapshotProperties.isEmpty() ? null : snapshotProperties,
                             nextRowIdStart);
         } catch (Throwable e) {
             // fails when preparing for commit, we should clean up
@@ -1046,6 +1050,18 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                         finalBaseFiles, finalDeltaFiles, indexFiles, newSnapshot, identifier);
         commitCallbacks.forEach(callback -> callback.call(context));
         return new SuccessCommitResult();
+    }
+
+    private Map<String, String> snapshotPropertiesForCommit(
+            Map<String, String> properties, CommitKind commitKind) {
+        if (commitKind != CommitKind.APPEND || rowIdCheckFromSnapshot == null) {
+            return properties;
+        }
+
+        Map<String, String> snapshotProperties = new HashMap<>(properties);
+        snapshotProperties.put(
+                Snapshot.ROW_ID_CHECK_FROM_SNAPSHOT, String.valueOf(rowIdCheckFromSnapshot));
+        return snapshotProperties;
     }
 
     public boolean replaceManifestList(

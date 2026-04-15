@@ -26,7 +26,8 @@ public class AllDeltaFollowUpScanner implements FollowUpScanner {
 
     @Override
     public boolean shouldScanSnapshot(Snapshot snapshot) {
-        return true;
+        return snapshot.commitKind() != Snapshot.CommitKind.APPEND
+                || !snapshot.hasProperty(Snapshot.ROW_ID_CHECK_FROM_SNAPSHOT);
     }
 
     @Override

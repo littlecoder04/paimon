@@ -31,7 +31,7 @@ from pypaimon.manifest.schema.manifest_entry import ManifestEntry
 from pypaimon.manifest.schema.manifest_file_meta import ManifestFileMeta
 from pypaimon.manifest.schema.simple_stats import SimpleStats
 from pypaimon.read.scanner.file_scanner import FileScanner
-from pypaimon.snapshot.snapshot import Snapshot
+from pypaimon.snapshot.snapshot import ROW_ID_CHECK_FROM_SNAPSHOT, Snapshot
 from pypaimon.snapshot.snapshot_commit import (PartitionStatistics,
                                                SnapshotCommit)
 from pypaimon.snapshot.snapshot_manager import SnapshotManager
@@ -120,6 +120,8 @@ class FileStoreCommit:
                            if msg.check_from_snapshot != -1]
         if valid_snapshots:
             self.conflict_detection._row_id_check_from_snapshot = min(valid_snapshots)
+        else:
+            self.conflict_detection._row_id_check_from_snapshot = None
 
         logger.info(
             "Ready to commit to table %s, number of commit messages: %d",
@@ -378,6 +380,13 @@ class FileStoreCommit:
                     delta_record_count -= entry.file.row_count
 
             total_record_count += delta_record_count
+            snapshot_properties = None
+            if (commit_kind == "APPEND" and
+                    self.conflict_detection._row_id_check_from_snapshot is not None):
+                snapshot_properties = {
+                    ROW_ID_CHECK_FROM_SNAPSHOT:
+                        str(self.conflict_detection._row_id_check_from_snapshot)
+                }
             snapshot_data = Snapshot(
                 version=3,
                 id=new_snapshot_id,
@@ -390,6 +399,7 @@ class FileStoreCommit:
                 commit_identifier=commit_identifier,
                 commit_kind=commit_kind,
                 time_millis=int(time.time() * 1000),
+                properties=snapshot_properties,
                 next_row_id=next_row_id,
             )
             # Generate partition statistics for the commit

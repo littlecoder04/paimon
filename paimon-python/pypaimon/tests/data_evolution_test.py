@@ -19,6 +19,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 from types import SimpleNamespace
 
@@ -27,8 +28,10 @@ import pyarrow as pa
 import pyarrow.dataset as ds
 
 from pypaimon import CatalogFactory, Schema
+from pypaimon.common.options.core_options import CoreOptions
 from pypaimon.common.predicate import Predicate
 from pypaimon.manifest.manifest_list_manager import ManifestListManager
+from pypaimon.snapshot.snapshot import ROW_ID_CHECK_FROM_SNAPSHOT
 from pypaimon.snapshot.snapshot_manager import SnapshotManager
 from pypaimon.table.row.offset_row import OffsetRow
 
@@ -147,6 +150,77 @@ class DataEvolutionTest(unittest.TestCase):
         self.assertEqual(
             actual_data.schema.names, expect_data.schema.names,
             'Read output column names must match schema')
+
+    def test_incremental_timestamp_skips_row_id_patch_append(self):
+        simple_pa_schema = pa.schema([
+            ('f0', pa.int8()),
+            ('f1', pa.int16()),
+        ])
+        schema = Schema.from_pyarrow_schema(
+            simple_pa_schema,
+            options={
+                'row-tracking.enabled': 'true',
+                'data-evolution.enabled': 'true',
+            })
+        self.catalog.create_table('default.test_row_id_patch_incremental', schema, False)
+        table = self.catalog.get_table('default.test_row_id_patch_incremental')
+        write_builder = table.new_batch_write_builder()
+
+        table_write = write_builder.new_write()
+        table_commit = write_builder.new_commit()
+        base_data = pa.Table.from_pydict({
+            'f0': [-1, 2],
+            'f1': [-1001, 1002]
+        }, schema=simple_pa_schema)
+        table_write.write_arrow(base_data)
+        table_commit.commit(table_write.prepare_commit())
+        table_write.close()
+        table_commit.close()
+
+        snapshot_manager = SnapshotManager(table)
+        first_snapshot = snapshot_manager.get_latest_snapshot()
+
+        time.sleep(0.02)
+
+        table_write = write_builder.new_write().with_write_type(['f0'])
+        table_commit = write_builder.new_commit()
+        patch_data = pa.Table.from_pydict({
+            'f0': [3, 4],
+        }, schema=pa.schema([
+            ('f0', pa.int8()),
+        ]))
+        table_write.write_arrow(patch_data)
+        cmts = table_write.prepare_commit()
+        cmts[0].new_files[0].first_row_id = 0
+        cmts[0].check_from_snapshot = first_snapshot.id
+        table_commit.commit(cmts)
+        table_write.close()
+        table_commit.close()
+
+        latest_snapshot = snapshot_manager.get_latest_snapshot()
+        self.assertEqual(latest_snapshot.commit_kind, "APPEND")
+        self.assertIsNotNone(latest_snapshot.properties)
+        self.assertEqual(
+            latest_snapshot.properties[ROW_ID_CHECK_FROM_SNAPSHOT],
+            str(first_snapshot.id))
+
+        latest_read_builder = table.new_read_builder()
+        latest_data = latest_read_builder.new_read().to_arrow(
+            latest_read_builder.new_scan().plan().splits())
+        expected_latest_data = pa.Table.from_pydict({
+            'f0': [3, 4],
+            'f1': [-1001, 1002]
+        }, schema=simple_pa_schema)
+        self.assertEqual(latest_data, expected_latest_data)
+
+        incremental_table = table.copy({
+            CoreOptions.INCREMENTAL_BETWEEN_TIMESTAMP.key():
+                "%s,%s" % (first_snapshot.time_millis, latest_snapshot.time_millis)
+        })
+        incremental_read_builder = incremental_table.new_read_builder()
+        incremental_data = incremental_read_builder.new_read().to_arrow(
+            incremental_read_builder.new_scan().plan().splits())
+        self.assertEqual(incremental_data.num_rows, 0)
 
     def test_partitioned_read_requested_column_missing_in_file(self):
         pa_schema = pa.schema([('f0', pa.int32()), ('f1', pa.string()), ('dt', pa.string())])

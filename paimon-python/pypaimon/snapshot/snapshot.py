@@ -22,6 +22,16 @@ from typing import Optional
 from pypaimon.common.json_util import json_field, optional_json_field
 
 BATCH_COMMIT_IDENTIFIER = 0x7fffffffffffffff
+ROW_ID_CHECK_FROM_SNAPSHOT = "row-id-check-from-snapshot"
+
+
+def is_row_id_conflict_checked_append(snapshot) -> bool:
+    properties = snapshot.properties
+    return (
+        snapshot.commit_kind == "APPEND"
+        and isinstance(properties, dict)
+        and ROW_ID_CHECK_FROM_SNAPSHOT in properties
+    )
 
 
 @dataclass
