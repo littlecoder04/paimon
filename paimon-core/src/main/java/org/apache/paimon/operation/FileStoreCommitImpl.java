@@ -239,9 +239,6 @@ public class FileStoreCommitImpl implements FileStoreCommit {
     @Override
     public FileStoreCommit rowIdCheckConflict(@Nullable Long rowIdCheckFromSnapshot) {
         this.conflictDetection.setRowIdCheckFromSnapshot(rowIdCheckFromSnapshot);
-        if (rowIdCheckFromSnapshot != null) {
-            this.appendCommitCheckConflict = true;
-        }
         return this;
     }
 
@@ -310,7 +307,8 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                     || !changes.appendChangelog.isEmpty()
                     || !changes.appendIndexFiles.isEmpty()) {
                 CommitKind commitKind = CommitKind.APPEND;
-                if (appendCommitCheckConflict) {
+                if (appendCommitCheckConflict
+                        || conflictDetection.getRowIdCheckFromSnapshot() != null) {
                     checkAppendFiles = true;
                 }
 
