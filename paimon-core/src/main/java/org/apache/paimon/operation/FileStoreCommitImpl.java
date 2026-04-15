@@ -318,6 +318,9 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                     checkAppendFiles = true;
                     allowRollback = true;
                 }
+                if (conflictDetection.hasRowIdCheckFromSnapshot()) {
+                    allowRollback = true;
+                }
 
                 attempts +=
                         tryCommit(

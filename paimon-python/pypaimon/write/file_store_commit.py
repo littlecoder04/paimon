@@ -143,8 +143,9 @@ class FileStoreCommit:
         logger.info("Finished collecting changes, including: %d entries", len(commit_entries))
 
         commit_kind = "APPEND"
-        detect_conflicts = self.conflict_detection.has_row_id_check_from_snapshot
-        allow_rollback = False
+        has_row_id_check = self.conflict_detection.has_row_id_check_from_snapshot
+        detect_conflicts = has_row_id_check
+        allow_rollback = has_row_id_check
 
         self._try_commit(commit_kind=commit_kind,
                          commit_identifier=commit_identifier,
