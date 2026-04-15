@@ -307,8 +307,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                     || !changes.appendChangelog.isEmpty()
                     || !changes.appendIndexFiles.isEmpty()) {
                 CommitKind commitKind = CommitKind.APPEND;
-                if (appendCommitCheckConflict
-                        || conflictDetection.getRowIdCheckFromSnapshot() != null) {
+                if (appendCommitCheckConflict) {
                     checkAppendFiles = true;
                 }
 
@@ -319,7 +318,8 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                     checkAppendFiles = true;
                     allowRollback = true;
                 }
-                if (conflictDetection.getRowIdCheckFromSnapshot() != null) {
+                if (conflictDetection.hasRowIdCheckFromSnapshot()) {
+                    checkAppendFiles = true;
                     allowRollback = true;
                 }
 
@@ -966,8 +966,6 @@ public class FileStoreCommitImpl implements FileStoreCommit {
             }
 
             // prepare snapshot file
-            Map<String, String> snapshotProperties =
-                    snapshotPropertiesForCommit(properties, commitKind);
             newSnapshot =
                     new Snapshot(
                             newSnapshotId,
@@ -989,7 +987,7 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                             currentWatermark,
                             statsFileName,
                             // if empty properties, just set to null
-                            snapshotProperties.isEmpty() ? null : snapshotProperties,
+                            properties.isEmpty() ? null : properties,
                             nextRowIdStart);
         } catch (Throwable e) {
             // fails when preparing for commit, we should clean up
@@ -1049,19 +1047,6 @@ public class FileStoreCommitImpl implements FileStoreCommit {
                         finalBaseFiles, finalDeltaFiles, indexFiles, newSnapshot, identifier);
         commitCallbacks.forEach(callback -> callback.call(context));
         return new SuccessCommitResult();
-    }
-
-    private Map<String, String> snapshotPropertiesForCommit(
-            Map<String, String> properties, CommitKind commitKind) {
-        Long rowIdCheckFromSnapshot = conflictDetection.getRowIdCheckFromSnapshot();
-        if (commitKind != CommitKind.APPEND || rowIdCheckFromSnapshot == null) {
-            return properties;
-        }
-
-        Map<String, String> snapshotProperties = new HashMap<>(properties);
-        snapshotProperties.put(
-                Snapshot.ROW_ID_CHECK_FROM_SNAPSHOT, String.valueOf(rowIdCheckFromSnapshot));
-        return snapshotProperties;
     }
 
     public boolean replaceManifestList(

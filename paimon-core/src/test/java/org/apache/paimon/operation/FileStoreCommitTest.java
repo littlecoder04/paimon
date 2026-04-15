@@ -1009,25 +1009,6 @@ public class FileStoreCommitTest {
     }
 
     @Test
-    public void testCommitManifestWithRowIdCheckProperty() throws Exception {
-        TestFileStore store = createStore(false);
-
-        try (FileStoreCommit fileStoreCommit = store.newCommit()) {
-            fileStoreCommit.ignoreEmptyCommit(false);
-            fileStoreCommit.rowIdCheckConflict(12L);
-
-            ManifestCommittable manifestCommittable = new ManifestCommittable(0);
-            manifestCommittable.addProperty("k1", "v1");
-            fileStoreCommit.commit(manifestCommittable, false);
-
-            Snapshot snapshot = checkNotNull(store.snapshotManager().latestSnapshot());
-            assertThat(snapshot.properties())
-                    .containsEntry("k1", "v1")
-                    .containsEntry(Snapshot.ROW_ID_CHECK_FROM_SNAPSHOT, "12");
-        }
-    }
-
-    @Test
     public void testCommitTwiceWithDifferentKind() throws Exception {
         TestFileStore store = createStore(false);
         try (FileStoreCommitImpl commit = store.newCommit()) {

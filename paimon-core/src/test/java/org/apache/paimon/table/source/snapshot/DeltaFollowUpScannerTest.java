@@ -29,7 +29,6 @@ import org.apache.paimon.utils.SnapshotManager;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -79,35 +78,5 @@ public class DeltaFollowUpScannerTest extends ScannerTestBase {
 
         write.close();
         commit.close();
-    }
-
-    @Test
-    void testSkipRowIdCheckAppendSnapshot() {
-        DeltaFollowUpScanner scanner = new DeltaFollowUpScanner();
-
-        Snapshot snapshot =
-                new Snapshot(
-                        1L,
-                        0L,
-                        "base-manifest",
-                        1L,
-                        "delta-manifest",
-                        1L,
-                        null,
-                        null,
-                        null,
-                        commitUser,
-                        1L,
-                        Snapshot.CommitKind.APPEND,
-                        System.currentTimeMillis(),
-                        0L,
-                        0L,
-                        null,
-                        null,
-                        null,
-                        Collections.singletonMap(Snapshot.ROW_ID_CHECK_FROM_SNAPSHOT, "1"),
-                        null);
-
-        assertThat(scanner.shouldScanSnapshot(snapshot)).isFalse();
     }
 }

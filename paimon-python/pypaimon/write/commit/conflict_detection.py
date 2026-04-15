@@ -51,13 +51,11 @@ class ConflictDetection:
         self._row_id_check_from_snapshot = None
         self.commit_scanner = commit_scanner
 
-    @property
-    def row_id_check_from_snapshot(self):
-        return self._row_id_check_from_snapshot
+    def should_be_overwrite_commit(self):
+        return False
 
-    @row_id_check_from_snapshot.setter
-    def row_id_check_from_snapshot(self, value):
-        self._row_id_check_from_snapshot = value
+    def has_row_id_check_from_snapshot(self):
+        return self._row_id_check_from_snapshot is not None
 
     def check_conflicts(self, latest_snapshot, base_entries, delta_entries, commit_kind):
         """Run all conflict checks and return the first detected conflict.

@@ -18,13 +18,11 @@
 """DeltaFollowUpScanner for append-only streaming reads."""
 
 from pypaimon.read.scanner.follow_up_scanner import FollowUpScanner
-from pypaimon.snapshot.snapshot import (Snapshot,
-                                        has_row_id_check_property)
+from pypaimon.snapshot.snapshot import Snapshot
 
 
 class DeltaFollowUpScanner(FollowUpScanner):
     """Scans only APPEND commits; skips compaction and maintenance."""
 
     def should_scan(self, snapshot: Snapshot) -> bool:
-        return (snapshot.commit_kind == "APPEND"
-                and not has_row_id_check_property(snapshot))
+        return snapshot.commit_kind == "APPEND"

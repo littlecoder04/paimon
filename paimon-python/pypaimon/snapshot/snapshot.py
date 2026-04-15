@@ -22,13 +22,6 @@ from typing import Optional
 from pypaimon.common.json_util import json_field, optional_json_field
 
 BATCH_COMMIT_IDENTIFIER = 0x7fffffffffffffff
-ROW_ID_CHECK_FROM_SNAPSHOT = "row-id-check-from-snapshot"
-
-
-def has_row_id_check_property(snapshot) -> bool:
-    """Check if snapshot has the row-id-check-from-snapshot property."""
-    properties = snapshot.properties
-    return isinstance(properties, dict) and ROW_ID_CHECK_FROM_SNAPSHOT in properties
 
 
 @dataclass

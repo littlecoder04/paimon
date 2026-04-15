@@ -84,11 +84,8 @@ public class IncrementalDeltaStartingScanner extends AbstractStartingScanner {
                             Snapshot snapshot = snapshotManager.snapshot(id);
                             switch (scanMode) {
                                 case DELTA:
-                                    if (snapshot.commitKind() != Snapshot.CommitKind.APPEND
-                                            || snapshot.hasProperty(
-                                                    Snapshot.ROW_ID_CHECK_FROM_SNAPSHOT)) {
-                                        // ignore COMPACT, OVERWRITE and internal row-id patch
-                                        // APPEND snapshots
+                                    if (snapshot.commitKind() != Snapshot.CommitKind.APPEND) {
+                                        // ignore COMPACT and OVERWRITE
                                         return Collections.emptyList();
                                     }
                                     break;

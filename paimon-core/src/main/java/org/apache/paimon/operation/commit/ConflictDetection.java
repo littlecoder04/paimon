@@ -119,9 +119,8 @@ public class ConflictDetection {
         this.rowIdCheckFromSnapshot = rowIdCheckFromSnapshot;
     }
 
-    @Nullable
-    public Long getRowIdCheckFromSnapshot() {
-        return rowIdCheckFromSnapshot;
+    public boolean hasRowIdCheckFromSnapshot() {
+        return rowIdCheckFromSnapshot != null;
     }
 
     @Nullable

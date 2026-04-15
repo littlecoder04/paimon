@@ -32,16 +32,8 @@ public class DeltaFollowUpScanner implements FollowUpScanner {
 
     @Override
     public boolean shouldScanSnapshot(Snapshot snapshot) {
-        if (snapshot.commitKind() == Snapshot.CommitKind.APPEND
-                && !snapshot.hasProperty(Snapshot.ROW_ID_CHECK_FROM_SNAPSHOT)) {
-            return true;
-        }
-
         if (snapshot.commitKind() == Snapshot.CommitKind.APPEND) {
-            LOG.debug(
-                    "Next snapshot id {} is an internal row-id patch APPEND snapshot, skip it for delta read.",
-                    snapshot.id());
-            return false;
+            return true;
         }
 
         LOG.debug(

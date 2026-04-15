@@ -19,9 +19,7 @@
 package org.apache.paimon.table.source.snapshot;
 
 import org.apache.paimon.CoreOptions;
-import org.apache.paimon.Snapshot;
 import org.apache.paimon.disk.IOManagerImpl;
-import org.apache.paimon.operation.ManifestsReader;
 import org.apache.paimon.options.Options;
 import org.apache.paimon.table.FileStoreTable;
 import org.apache.paimon.table.sink.StreamTableCommit;
@@ -33,7 +31,6 @@ import org.apache.paimon.utils.SnapshotManager;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,11 +42,6 @@ import static org.apache.paimon.testutils.assertj.PaimonAssertions.anyCauseMatch
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 
 /** Tests for {@link IncrementalDeltaStartingScanner}. */
 public class IncrementalDeltaStartingScannerTest extends ScannerTestBase {
@@ -129,77 +121,6 @@ public class IncrementalDeltaStartingScannerTest extends ScannerTestBase {
                         anyCauseMatches(
                                 IllegalArgumentException.class,
                                 "The specified scan snapshotId range [1, 5] is out of available snapshotId range [1, 4]."));
-    }
-
-    @Test
-    void testScanDeltaSkipsRowIdCheckAppendSnapshot() {
-        SnapshotManager snapshotManager = mock(SnapshotManager.class);
-        SnapshotReader reader = mock(SnapshotReader.class);
-        ManifestsReader manifestsReader = mock(ManifestsReader.class);
-
-        Snapshot normalAppend =
-                new Snapshot(
-                        1L,
-                        0L,
-                        "base-manifest-1",
-                        1L,
-                        "delta-manifest-1",
-                        1L,
-                        null,
-                        null,
-                        null,
-                        commitUser,
-                        1L,
-                        Snapshot.CommitKind.APPEND,
-                        System.currentTimeMillis(),
-                        0L,
-                        0L,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null);
-        Snapshot rowIdCheckAppend =
-                new Snapshot(
-                        2L,
-                        0L,
-                        "base-manifest-2",
-                        1L,
-                        "delta-manifest-2",
-                        1L,
-                        null,
-                        null,
-                        null,
-                        commitUser,
-                        2L,
-                        Snapshot.CommitKind.APPEND,
-                        System.currentTimeMillis(),
-                        0L,
-                        0L,
-                        null,
-                        null,
-                        null,
-                        Collections.singletonMap(Snapshot.ROW_ID_CHECK_FROM_SNAPSHOT, "1"),
-                        null);
-
-        when(snapshotManager.snapshot(1L)).thenReturn(normalAppend);
-        when(snapshotManager.snapshot(2L)).thenReturn(rowIdCheckAppend);
-        when(reader.manifestsReader()).thenReturn(manifestsReader);
-        when(reader.parallelism()).thenReturn(1);
-        when(manifestsReader.read(normalAppend, ScanMode.DELTA))
-                .thenReturn(
-                        new ManifestsReader.Result(
-                                normalAppend, Collections.emptyList(), Collections.emptyList()));
-
-        StartingScanner.Result result =
-                new IncrementalDeltaStartingScanner(snapshotManager, 0L, 2L, ScanMode.DELTA)
-                        .scan(reader);
-        assertThat(result).isInstanceOf(StartingScanner.ScannedResult.class);
-        assertThat(((StartingScanner.ScannedResult) result).splits()).isEmpty();
-
-        verify(manifestsReader).read(normalAppend, ScanMode.DELTA);
-        verify(manifestsReader, never()).read(rowIdCheckAppend, ScanMode.DELTA);
-        verifyNoMoreInteractions(manifestsReader);
     }
 
     private void writeDataToTable() throws Exception {
