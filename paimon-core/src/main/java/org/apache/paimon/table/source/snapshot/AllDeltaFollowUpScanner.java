@@ -24,12 +24,9 @@ import org.apache.paimon.table.source.ScanMode;
 /** {@link FollowUpScanner} for read all file changes. */
 public class AllDeltaFollowUpScanner implements FollowUpScanner {
 
-    // Skip row-id patch APPEND snapshots: QueryService (via FileMonitorTable) cannot merge
-    // their partial-column files yet.
     @Override
     public boolean shouldScanSnapshot(Snapshot snapshot) {
-        return snapshot.commitKind() != Snapshot.CommitKind.APPEND
-                || !snapshot.hasProperty(Snapshot.ROW_ID_CHECK_FROM_SNAPSHOT);
+        return true;
     }
 
     @Override
