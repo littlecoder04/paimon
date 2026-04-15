@@ -23,7 +23,6 @@ from pypaimon.common.predicate import Predicate
 
 from pypaimon.read.plan import Plan
 from pypaimon.read.scanner.file_scanner import FileScanner
-from pypaimon.snapshot.snapshot import has_row_id_check_property
 from pypaimon.snapshot.snapshot_manager import SnapshotManager
 from pypaimon.manifest.manifest_list_manager import ManifestListManager
 
@@ -89,8 +88,7 @@ class TableScan:
                 for snapshot_id in range(start_id + 1, end_id + 1):
                     snapshot = snapshot_manager.get_snapshot_by_id(snapshot_id)
                     end_snapshot = snapshot
-                    if (snapshot.commit_kind == "APPEND" and
-                            not has_row_id_check_property(snapshot)):
+                    if snapshot.commit_kind == "APPEND":
                         snapshots_in_range.append(snapshot)
 
                 manifests = []
